@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = Field(default="Adaptive Planner API", validation_alias="APP_NAME")
     environment: str = Field(default="development", validation_alias="ENVIRONMENT")
+    database_url: str = Field(validation_alias="DATABASE_URL")
 
     model_config = SettingsConfigDict(
         env_file=".env",
