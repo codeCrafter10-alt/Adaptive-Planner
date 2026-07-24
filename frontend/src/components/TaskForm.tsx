@@ -10,6 +10,7 @@ const emptyForm = {
   description: '',
   estimatedDurationMinutes: '',
   dueDate: '',
+  dueTime: '',
   priority: 'medium' as TaskPriority,
 };
 
@@ -31,6 +32,8 @@ function TaskForm({ onCreate }: TaskFormProps) {
       return;
     }
 
+    const deadline = new Date(`${form.dueDate}T${form.dueTime || '23:59'}:00`);
+
     setError(null);
     setSubmitting(true);
     try {
@@ -38,7 +41,7 @@ function TaskForm({ onCreate }: TaskFormProps) {
         title: form.title.trim(),
         description: form.description.trim() || null,
         estimated_duration_minutes: durationMinutes,
-        due_date: new Date(form.dueDate).toISOString(),
+        due_date: deadline.toISOString(),
         priority: form.priority,
       });
       setForm(emptyForm);
@@ -71,10 +74,17 @@ function TaskForm({ onCreate }: TaskFormProps) {
         onChange={(e) => setForm({ ...form, estimatedDurationMinutes: e.target.value })}
       />
       <input
-        type="datetime-local"
+        type="date"
+        aria-label="Due date"
         required
         value={form.dueDate}
         onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+      />
+      <input
+        type="time"
+        aria-label="Due time (optional)"
+        value={form.dueTime}
+        onChange={(e) => setForm({ ...form, dueTime: e.target.value })}
       />
       <select
         value={form.priority}
