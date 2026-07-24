@@ -43,7 +43,7 @@ function TaskForm({ onCreate }: TaskFormProps) {
       });
       setForm(emptyForm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create task.');
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setSubmitting(false);
     }
