@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.task import TaskPriority
 
@@ -11,6 +11,16 @@ class TaskBase(BaseModel):
     estimated_duration_minutes: int = Field(gt=0)
     due_date: datetime
     priority: TaskPriority = TaskPriority.medium
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Title cannot be empty.")
+
+        return value
 
 
 class TaskCreate(TaskBase):
@@ -46,6 +56,19 @@ class TaskUpdate(BaseModel):
             raise ValueError("completed cannot be null")
 
         return self
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Title cannot be empty.")
+
+        return value
 
 
 class TaskResponse(TaskBase):

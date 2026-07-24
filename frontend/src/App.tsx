@@ -22,14 +22,28 @@ function App() {
   };
 
   const handleToggleComplete = async (task: Task) => {
-    const wasCompleted = task.completed_at !== null;
-    const updated = await updateTask(task.id, { completed: !wasCompleted });
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    try {
+      const wasCompleted = task.completed_at !== null;
+      const updated = await updateTask(task.id, { completed: !wasCompleted });
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === updated.id ? updated : t))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update task.');
+    }
   };
 
   const handleDelete = async (task: Task) => {
-    await deleteTask(task.id);
-    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    try {
+      await deleteTask(task.id);
+
+      setTasks((prev) =>
+        prev.filter((t) => t.id !== task.id)
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete task.');
+    }
   };
 
   return (
