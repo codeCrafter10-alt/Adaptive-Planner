@@ -1,21 +1,41 @@
 import { useState } from 'react';
-import type { TaskCreateInput, TaskPriority } from '../types/task';
+import type { Task, TaskPriority, TaskUpdateInput } from '../types/task';
 
-interface TaskFormProps {
-  onCreate: (input: TaskCreateInput) => Promise<void>;
+interface TaskEditFormProps {
+  task: Task;
+  onSave: (input: TaskUpdateInput) => Promise<void>;
+  onCancel: () => void;
 }
 
-const emptyForm = {
-  title: '',
-  description: '',
-  estimatedDurationMinutes: '',
-  dueDate: '',
-  dueTime: '',
-  priority: 'medium' as TaskPriority,
-};
+function splitDueDate(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-function TaskForm({ onCreate }: TaskFormProps) {
-  const [form, setForm] = useState(emptyForm);
+  // 23:59:59 is the "no time chosen" sentinel (see TaskForm/TaskEditForm's
+  // due-date construction). Leave the time field blank so an unedited save
+  // falls back through the same sentinel branch instead of turning into an
+  // explicit 11:59 PM.
+  const isNoTimeSentinel = d.getHours() === 23 && d.getMinutes() === 59 && d.getSeconds() === 59;
+  const time = isNoTimeSentinel ? '' : `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  return { date, time };
+}
+
+function buildFormFromTask(task: Task) {
+  const { date, time } = splitDueDate(task.due_date);
+  return {
+    title: task.title,
+    description: task.description ?? '',
+    estimatedDurationMinutes: String(task.estimated_duration_minutes),
+    dueDate: date,
+    dueTime: time,
+    priority: task.priority,
+  };
+}
+
+function TaskEditForm({ task, onSave, onCancel }: TaskEditFormProps) {
+  const [form, setForm] = useState(() => buildFormFromTask(task));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,10 +52,9 @@ function TaskForm({ onCreate }: TaskFormProps) {
       return;
     }
 
-    // An explicit time always comes from <input type="time">, which never
-    // produces seconds, so it saves with :00 seconds. Leaving the time
-    // blank falls back to 23:59:59 instead of 23:59:00 so the two cases
-    // stay distinguishable later (see TaskList's due-date formatting).
+    // Same sentinel convention as TaskForm: explicit times always save with
+    // :00 seconds (from <input type="time">); a blank time falls back to
+    // 23:59:59 so it stays distinguishable from an explicit 11:59 PM.
     const deadline = form.dueTime
       ? new Date(`${form.dueDate}T${form.dueTime}:00`)
       : new Date(`${form.dueDate}T23:59:59`);
@@ -43,28 +62,27 @@ function TaskForm({ onCreate }: TaskFormProps) {
     setError(null);
     setSubmitting(true);
     try {
-      await onCreate({
+      await onSave({
         title: form.title.trim(),
         description: form.description.trim() || null,
         estimated_duration_minutes: durationMinutes,
         due_date: deadline.toISOString(),
-        priority: form.priority,
+        priority: form.priority as TaskPriority,
       });
-      setForm(emptyForm);
+      // On success the parent unmounts this form (edit mode closes), so no
+      // further state updates are needed here.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
-    } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form className="task-form" onSubmit={handleSubmit}>
+    <form className="task-form task-edit-form" onSubmit={handleSubmit}>
       <label className="field">
         <span className="label-text">Title</span>
         <input
           type="text"
-          placeholder="e.g., Write project summary"
           value={form.title}
           disabled={submitting}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -75,7 +93,6 @@ function TaskForm({ onCreate }: TaskFormProps) {
         <span className="label-text">Description<span className="muted">(optional)</span></span>
         <input
           type="text"
-          placeholder="Short notes (optional)"
           value={form.description}
           disabled={submitting}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -86,7 +103,6 @@ function TaskForm({ onCreate }: TaskFormProps) {
         <span className="label-text">Estimated minutes</span>
         <input
           type="number"
-          placeholder="30"
           min={1}
           value={form.estimatedDurationMinutes}
           disabled={submitting}
@@ -130,7 +146,10 @@ function TaskForm({ onCreate }: TaskFormProps) {
 
       <div className="task-form-actions">
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Adding…' : 'Add Task'}
+          {submitting ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" disabled={submitting} onClick={onCancel}>
+          Cancel
         </button>
       </div>
 
@@ -145,4 +164,4 @@ function TaskForm({ onCreate }: TaskFormProps) {
   );
 }
 
-export default TaskForm;
+export default TaskEditForm;
