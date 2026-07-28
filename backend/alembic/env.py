@@ -6,6 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
+from app.models.availability import Availability  # noqa: F401  (registers Availability with Base.metadata)
 from app.models.base import Base
 from app.models.task import Task  # noqa: F401  (registers Task with Base.metadata)
 
