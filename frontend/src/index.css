@@ -619,3 +619,206 @@ button[disabled], input[disabled], select[disabled]{ opacity: 0.6; cursor: not-a
   align-items: center;
   justify-content: center;
 }
+
+/* ========================================
+   Availability exceptions
+   ======================================== */
+
+.availability-exception-section {
+  margin-top: 18px;
+  padding-top: 2px;
+}
+
+.availability-exception-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.availability-exception-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.availability-exception-description {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.availability-exception-add-button {
+  width: fit-content;
+  padding: 9px 12px;
+  border: 1px dashed #c8d3e2;
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.availability-exception-add-button:hover {
+  background: #f5f7fb;
+  border-color: #aebed2;
+  color: var(--text);
+}
+
+.availability-exception-list {
+  display: grid;
+  gap: 12px;
+}
+
+.availability-exception-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.availability-exception-card-editing {
+  padding: 0;
+  align-items: stretch;
+}
+
+.availability-exception-content {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.availability-exception-date {
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.availability-exception-status {
+  font-size: 0.9rem;
+  font-weight: 550;
+  color: var(--text);
+}
+
+.availability-exception-reason {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.availability-exception-actions {
+  display: flex;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.availability-exception-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 12px 2px 0;
+}
+
+.availability-exception-form {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.availability-exception-form-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.availability-exception-form input[type="date"],
+.availability-exception-form input[type="time"],
+.availability-exception-form input[type="text"],
+.availability-exception-form select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.availability-exception-reason-field {
+  grid-column: 1 / -1;
+}
+
+.availability-exception-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.availability-exception-form button {
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.availability-exception-form-submit {
+  border: 1px solid #2b3a4b;
+  background: #2b3a4b;
+  color: #ffffff;
+}
+
+.availability-exception-form-submit:hover:not(:disabled) {
+  background: #202d3c;
+}
+
+.availability-exception-form-cancel {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+}
+
+.availability-exception-form-cancel:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.availability-exception-form-errors {
+  margin-top: 9px;
+}
+
+.availability-exception-form-error {
+  color: #8f3f3f;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .availability-exception-header {
+    flex-direction: column;
+  }
+
+  .availability-exception-card {
+    align-items: flex-start;
+  }
+
+  .availability-exception-actions {
+    flex-direction: column;
+  }
+
+  .availability-exception-card button {
+    min-height: 34px;
+  }
+
+  .availability-exception-form-fields {
+    grid-template-columns: 1fr;
+  }
+}

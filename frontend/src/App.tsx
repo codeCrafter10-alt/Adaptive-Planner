@@ -5,8 +5,15 @@ import {
   listAvailability,
   updateAvailability,
 } from './api/availability';
+import {
+  createAvailabilityException,
+  deleteAvailabilityException,
+  listAvailabilityExceptions,
+  updateAvailabilityException,
+} from './api/availability-exceptions';
 import { createTask, deleteTask, listTasks, updateTask } from './api/tasks';
 import AvailabilityList from './components/AvailabilityList';
+import AvailabilityExceptionList from './components/AvailabilityExceptionList';
 import TaskForm from './components/TaskForm';
 import TaskList from './components/TaskList';
 import type {
@@ -14,6 +21,11 @@ import type {
   AvailabilityCreateInput,
   AvailabilityUpdateInput,
 } from './types/availability';
+import type {
+  AvailabilityException,
+  AvailabilityExceptionCreateInput,
+  AvailabilityExceptionUpdateInput,
+} from './types/availability-exception';
 import type { Task, TaskCreateInput, TaskUpdateInput } from './types/task';
 
 type View = 'tasks' | 'availability';
@@ -33,6 +45,19 @@ function App() {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [availabilityActionError, setAvailabilityActionError] =
     useState<string | null>(null);
+
+  // Availability exception state
+  const [availabilityExceptions, setAvailabilityExceptions] = useState<
+    AvailabilityException[]
+  >([]);
+  const [availabilityExceptionsLoading, setAvailabilityExceptionsLoading] =
+    useState(false);
+  const [availabilityExceptionsError, setAvailabilityExceptionsError] =
+    useState<string | null>(null);
+  const [
+    availabilityExceptionsActionError,
+    setAvailabilityExceptionsActionError,
+  ] = useState<string | null>(null);
 
   useEffect(() => {
     listTasks()
@@ -78,8 +103,43 @@ function App() {
   }, [view]);
 
   useEffect(() => {
+    if (view !== 'availability') return;
+
+    let cancelled = false;
+
+    setAvailabilityExceptionsError(null);
+    setAvailabilityExceptionsLoading(true);
+
+    listAvailabilityExceptions()
+      .then((exceptions) => {
+        if (!cancelled) {
+          setAvailabilityExceptions(exceptions);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setAvailabilityExceptionsError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load availability exceptions.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAvailabilityExceptionsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [view]);
+
+  useEffect(() => {
     setActionError(null);
     setAvailabilityActionError(null);
+    setAvailabilityExceptionsActionError(null);
   }, [view]);
 
   // --------------------
@@ -214,6 +274,74 @@ function App() {
     }
   };
 
+  const handleCreateAvailabilityException = async (
+    input: AvailabilityExceptionCreateInput,
+  ) => {
+    setAvailabilityExceptionsActionError(null);
+
+    try {
+      const exception = await createAvailabilityException(input);
+
+      setAvailabilityExceptions((prev) =>
+        [...prev, exception].sort(
+          (a, b) => a.date.localeCompare(b.date) || a.id - b.id,
+        ),
+      );
+    } catch (err) {
+      setAvailabilityExceptionsActionError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to add availability exception.',
+      );
+      throw err;
+    }
+  };
+
+  const handleUpdateAvailabilityException = async (
+    id: number,
+    input: AvailabilityExceptionUpdateInput,
+  ) => {
+    setAvailabilityExceptionsActionError(null);
+
+    try {
+      const updated = await updateAvailabilityException(id, input);
+
+      setAvailabilityExceptions((prev) =>
+        [...prev.map((exception) =>
+          exception.id === updated.id ? updated : exception,
+        )].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id),
+      );
+    } catch (err) {
+      setAvailabilityExceptionsActionError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update availability exception.',
+      );
+      throw err;
+    }
+  };
+
+  const handleDeleteAvailabilityException = async (
+    exception: AvailabilityException,
+  ) => {
+    setAvailabilityExceptionsActionError(null);
+
+    try {
+      await deleteAvailabilityException(exception.id);
+
+      setAvailabilityExceptions((prev) =>
+        prev.filter((item) => item.id !== exception.id),
+      );
+    } catch (err) {
+      setAvailabilityExceptionsActionError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete availability exception.',
+      );
+      throw err;
+    }
+  };
+
   return (
     <main className="app">
       <h1 style={{ fontSize: '1.7rem' }}>Adaptive Planner</h1>
@@ -293,6 +421,32 @@ function App() {
                 onUpdate={handleUpdateAvailability}
                 onDelete={handleDeleteAvailability}
               />
+
+              {availabilityExceptionsLoading && (
+                <p>Loading availability exceptions…</p>
+              )}
+
+              {availabilityExceptionsError && (
+                <p className="app-error">{availabilityExceptionsError}</p>
+              )}
+
+              {!availabilityExceptionsLoading &&
+                !availabilityExceptionsError && (
+                  <>
+                    {availabilityExceptionsActionError && (
+                      <p className="app-error">
+                        {availabilityExceptionsActionError}
+                      </p>
+                    )}
+
+                    <AvailabilityExceptionList
+                      exceptions={availabilityExceptions}
+                      onCreate={handleCreateAvailabilityException}
+                      onUpdate={handleUpdateAvailabilityException}
+                      onDelete={handleDeleteAvailabilityException}
+                    />
+                  </>
+                )}
             </>
           )}
         </>
