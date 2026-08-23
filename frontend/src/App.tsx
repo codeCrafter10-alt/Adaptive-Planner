@@ -27,6 +27,7 @@ import type {
   AvailabilityExceptionUpdateInput,
 } from './types/availability-exception';
 import type { Task, TaskCreateInput, TaskUpdateInput } from './types/task';
+import { isPastDate } from './utils/date';
 
 type View = 'tasks' | 'availability';
 
@@ -58,6 +59,23 @@ function App() {
     availabilityExceptionsActionError,
     setAvailabilityExceptionsActionError,
   ] = useState<string | null>(null);
+  const activeAvailabilityExceptions = availabilityExceptions.filter(
+    (exception) => !isPastDate(exception.date),
+  );
+
+  const handleViewChange = (nextView: View) => {
+    if (nextView !== view && nextView === 'availability') {
+      setAvailabilityError(null);
+      setAvailabilityLoading(true);
+      setAvailabilityExceptionsError(null);
+      setAvailabilityExceptionsLoading(true);
+    }
+
+    setActionError(null);
+    setAvailabilityActionError(null);
+    setAvailabilityExceptionsActionError(null);
+    setView(nextView);
+  };
 
   useEffect(() => {
     listTasks()
@@ -74,9 +92,6 @@ function App() {
     if (view !== 'availability') return;
 
     let cancelled = false;
-
-    setAvailabilityError(null);
-    setAvailabilityLoading(true);
 
     listAvailability()
       .then((blocks) => {
@@ -107,9 +122,6 @@ function App() {
 
     let cancelled = false;
 
-    setAvailabilityExceptionsError(null);
-    setAvailabilityExceptionsLoading(true);
-
     listAvailabilityExceptions()
       .then((exceptions) => {
         if (!cancelled) {
@@ -134,12 +146,6 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [view]);
-
-  useEffect(() => {
-    setActionError(null);
-    setAvailabilityActionError(null);
-    setAvailabilityExceptionsActionError(null);
   }, [view]);
 
   // --------------------
@@ -354,7 +360,7 @@ function App() {
               ? 'app-navigation-button active'
               : 'app-navigation-button'
           }
-          onClick={() => setView('tasks')}
+          onClick={() => handleViewChange('tasks')}
         >
           Tasks
         </button>
@@ -366,7 +372,7 @@ function App() {
               ? 'app-navigation-button active'
               : 'app-navigation-button'
           }
-          onClick={() => setView('availability')}
+          onClick={() => handleViewChange('availability')}
         >
           Availability
         </button>
@@ -399,15 +405,11 @@ function App() {
 
       {view === 'availability' && (
         <>
-          {availabilityLoading && (
-            <p>Loading availability…</p>
-          )}
-
-          {availabilityError && (
+          {availabilityLoading ? (
+            <p className="availability-section-status">Loading availability…</p>
+          ) : availabilityError ? (
             <p className="app-error">{availabilityError}</p>
-          )}
-
-          {!availabilityLoading && !availabilityError && (
+          ) : (
             <>
               {availabilityActionError && (
                 <p className="app-error">
@@ -422,31 +424,28 @@ function App() {
                 onDelete={handleDeleteAvailability}
               />
 
-              {availabilityExceptionsLoading && (
-                <p>Loading availability exceptions…</p>
-              )}
-
-              {availabilityExceptionsError && (
+              {availabilityExceptionsLoading ? (
+                <p className="availability-section-status">
+                  Loading availability exceptions…
+                </p>
+              ) : availabilityExceptionsError ? (
                 <p className="app-error">{availabilityExceptionsError}</p>
+              ) : (
+                <>
+                  {availabilityExceptionsActionError && (
+                    <p className="app-error">
+                      {availabilityExceptionsActionError}
+                    </p>
+                  )}
+
+                  <AvailabilityExceptionList
+                    exceptions={activeAvailabilityExceptions}
+                    onCreate={handleCreateAvailabilityException}
+                    onUpdate={handleUpdateAvailabilityException}
+                    onDelete={handleDeleteAvailabilityException}
+                  />
+                </>
               )}
-
-              {!availabilityExceptionsLoading &&
-                !availabilityExceptionsError && (
-                  <>
-                    {availabilityExceptionsActionError && (
-                      <p className="app-error">
-                        {availabilityExceptionsActionError}
-                      </p>
-                    )}
-
-                    <AvailabilityExceptionList
-                      exceptions={availabilityExceptions}
-                      onCreate={handleCreateAvailabilityException}
-                      onUpdate={handleUpdateAvailabilityException}
-                      onDelete={handleDeleteAvailabilityException}
-                    />
-                  </>
-                )}
             </>
           )}
         </>

@@ -6,6 +6,7 @@ import type {
   AvailabilityExceptionCreateInput,
   AvailabilityExceptionUpdateInput,
 } from '../types/availability-exception';
+import { formatHumanReadableDate } from '../utils/date';
 
 interface AvailabilityExceptionListProps {
   exceptions: AvailabilityException[];
@@ -29,7 +30,7 @@ function formatTime(time: string): string {
 }
 
 function formatDate(date: string): string {
-  return new Date(`${date}T00:00:00`).toLocaleDateString();
+  return formatHumanReadableDate(date);
 }
 
 function formatTimeRange(exception: AvailabilityException): string {
@@ -52,13 +53,17 @@ function AvailabilityExceptionList({
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
   const handleAdd = () => {
-    if (adding || editingExceptionId !== null || exceptionToDelete !== null) return;
+    if (adding || editingExceptionId !== null || exceptionToDelete !== null) {
+      return;
+    }
     setAdding(true);
   };
 
   const handleEdit = (exception: AvailabilityException) => {
     if (pendingIds.has(exception.id)) return;
-    if (adding || editingExceptionId !== null || exceptionToDelete !== null) return;
+    if (adding || editingExceptionId !== null || exceptionToDelete !== null) {
+      return;
+    }
 
     setEditingExceptionId(exception.id);
   };
@@ -83,7 +88,9 @@ function AvailabilityExceptionList({
 
   const handleDelete = (exception: AvailabilityException) => {
     if (pendingIds.has(exception.id)) return;
-    if (adding || editingExceptionId !== null) return;
+    if (adding || editingExceptionId !== null || exceptionToDelete !== null) {
+      return;
+    }
 
     setExceptionToDelete(exception);
   };
@@ -152,7 +159,7 @@ function AvailabilityExceptionList({
         )}
 
         {exceptions.length === 0 && !adding && editingExceptionId === null && (
-          <p className="availability-exception-empty">No exceptions yet.</p>
+          <p className="availability-exception-empty">No upcoming exceptions.</p>
         )}
 
         <div className="availability-exception-list">

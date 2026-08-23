@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { SubmitEventHandler } from 'react';
 import {
   WEEKDAYS,
@@ -26,6 +26,7 @@ function AvailabilityForm({
     onSubmit,
     onCancel,
 }: AvailabilityFormProps) {
+  const isEditMode = mode === 'edit';
   const [dayOfWeek, setDayOfWeek] = useState(
     initialValues?.day_of_week ?? 0,
   );
@@ -38,15 +39,12 @@ function AvailabilityForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDayOfWeek(initialValues?.day_of_week ?? 0);
-    setStartTime(initialValues?.start_time?.slice(0, 5) ?? '');
-    setEndTime(initialValues?.end_time?.slice(0, 5) ?? '');
-    setError(null);
-  }, [initialValues]);
-
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
+
+    if (submitting) {
+      return;
+    }
 
     if (!startTime || !endTime) {
       setError('Start time and end time are required.');
@@ -79,22 +77,22 @@ function AvailabilityForm({
 
   return (
     <form className="availability-form" onSubmit={handleSubmit}>
-      {mode === 'edit' && (
+      {isEditMode && (
         <label className="field">
-            <span className="label-text">Day</span>
-            <select
+          <span className="label-text">Day</span>
+          <select
             value={dayOfWeek}
             disabled={submitting}
             onChange={(event) => setDayOfWeek(Number(event.target.value))}
-            >
+          >
             {WEEKDAYS.map((day) => (
-                <option key={day.value} value={day.value}>
+              <option key={day.value} value={day.value}>
                 {day.label}
-                </option>
+              </option>
             ))}
-            </select>
+          </select>
         </label>
-        )}
+      )}
 
       <label className="field">
         <span className="label-text">Start time</span>

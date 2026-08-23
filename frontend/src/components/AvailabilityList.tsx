@@ -2,10 +2,10 @@ import { useState } from 'react';
 import ConfirmDialog from './ConfirmDialog';
 import AvailabilityForm from './AvailabilityForm';
 import {
-    WEEKDAYS,
-    type Availability,
-    type AvailabilityCreateInput,
-    type AvailabilityUpdateInput,
+  WEEKDAYS,
+  type Availability,
+  type AvailabilityCreateInput,
+  type AvailabilityUpdateInput,
 } from '../types/availability';
 
 interface AvailabilityListProps {
@@ -14,8 +14,6 @@ interface AvailabilityListProps {
   onUpdate: (id: number, input: AvailabilityUpdateInput) => Promise<void>;
   onDelete: (availability: Availability) => Promise<void>;
 }
-
-
 function formatTime(time: string): string {
   const [hoursString, minutesString] = time.split(':');
   const hours = Number(hoursString);
@@ -47,13 +45,21 @@ function AvailabilityList({
     availability.filter((block) => block.day_of_week === dayOfWeek);
 
   const handleAdd = (dayOfWeek: number) => {
-    if (addingDay !== null || editingBlockId !== null || availabilityToDelete !== null) return;
+    if (
+      addingDay !== null ||
+      editingBlockId !== null ||
+      availabilityToDelete !== null
+    ) return;
     setAddingDay(dayOfWeek);
   };
 
   const handleEdit = (block: Availability) => {
     if (pendingIds.has(block.id)) return;
-    if (addingDay !== null || editingBlockId !== null || availabilityToDelete !== null) return;
+    if (
+      addingDay !== null ||
+      editingBlockId !== null ||
+      availabilityToDelete !== null
+    ) return;
 
     setEditingBlockId(block.id);
   };
@@ -78,7 +84,13 @@ function AvailabilityList({
 
   const handleDelete = (block: Availability) => {
     if (pendingIds.has(block.id)) return;
-    if (addingDay !== null || editingBlockId !== null) return;
+    if (
+      addingDay !== null ||
+      editingBlockId !== null ||
+      availabilityToDelete !== null
+    ) {
+      return;
+    }
 
     setAvailabilityToDelete(block);
   };
@@ -119,7 +131,7 @@ function AvailabilityList({
 
         <div className="availability-day-content">
           {blocks.length === 0 && !isAdding && (
-            <p className="availability-day-empty">Unavailable</p>
+            <p className="availability-day-empty">No availability set.</p>
           )}
 
           {blocks.map((block) => {
@@ -182,15 +194,15 @@ function AvailabilityList({
               <AvailabilityForm
                 mode="create"
                 initialValues={{
-                    day_of_week: day.value,
-                    start_time: '',
-                    end_time: '',
+                  day_of_week: day.value,
+                  start_time: '',
+                  end_time: '',
                 }}
                 submitLabel="Add Block"
                 submittingLabel="Adding…"
                 onSubmit={handleCreate}
                 onCancel={handleCancelForm}
-                />
+              />
             </div>
           )}
 

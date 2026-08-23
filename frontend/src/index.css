@@ -609,15 +609,20 @@ button[disabled], input[disabled], select[disabled]{ opacity: 0.6; cursor: not-a
 .availability-day-empty {
   padding: 22px 14px;
   color: var(--muted);
-  font-size: 1.05rem;
-  font-style: italic;
+  font-size: 0.9rem;
   text-align: center;
   background: #fbfcfe;
   border-bottom: 1px solid #edf1f6;
-  min-height: 64px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.availability-section-status {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 4px 0 2px;
 }
 
 /* ========================================
@@ -627,6 +632,7 @@ button[disabled], input[disabled], select[disabled]{ opacity: 0.6; cursor: not-a
 .availability-exception-section {
   margin-top: 18px;
   padding-top: 2px;
+  border-top: 1px solid #eef2f7;
 }
 
 .availability-exception-header {
@@ -724,7 +730,7 @@ button[disabled], input[disabled], select[disabled]{ opacity: 0.6; cursor: not-a
 .availability-exception-empty {
   color: var(--muted);
   font-size: 0.85rem;
-  padding: 12px 2px 0;
+  padding: 4px 2px 0;
 }
 
 .availability-exception-form {
@@ -738,6 +744,36 @@ button[disabled], input[disabled], select[disabled]{ opacity: 0.6; cursor: not-a
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.availability-exception-type-field {
+  grid-column: 1 / -1;
+  border: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.availability-exception-type-options {
+  display: flex;
+  gap: 8px;
+}
+
+.availability-exception-type-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.availability-exception-type-option input {
+  margin: 0;
 }
 
 .availability-exception-form input[type="date"],
@@ -820,5 +856,9 @@ button[disabled], input[disabled], select[disabled]{ opacity: 0.6; cursor: not-a
 
   .availability-exception-form-fields {
     grid-template-columns: 1fr;
+  }
+
+  .availability-exception-type-options {
+    flex-direction: column;
   }
 }
