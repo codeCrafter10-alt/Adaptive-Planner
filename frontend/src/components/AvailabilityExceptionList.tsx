@@ -143,6 +143,7 @@ function AvailabilityExceptionList({
         {adding && (
           <div className="availability-exception-card availability-exception-card-editing">
             <AvailabilityExceptionForm
+              mode="create"
               initialValues={{
                 date: '',
                 is_available: true,
@@ -178,6 +179,7 @@ function AvailabilityExceptionList({
                   className="availability-exception-card availability-exception-card-editing"
                 >
                   <AvailabilityExceptionForm
+                    mode="edit"
                     initialValues={exception}
                     submitLabel="Save"
                     submittingLabel="Saving…"

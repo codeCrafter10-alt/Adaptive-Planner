@@ -11,6 +11,7 @@ import {
 type AvailabilityType = 'available' | 'unavailable';
 
 interface AvailabilityExceptionFormProps {
+  mode: 'create' | 'edit';
   initialValues?: {
     date: string;
     is_available: boolean;
@@ -25,12 +26,14 @@ interface AvailabilityExceptionFormProps {
 }
 
 function AvailabilityExceptionForm({
+  mode,
   initialValues,
   submitLabel,
   submittingLabel,
   onSubmit,
   onCancel,
 }: AvailabilityExceptionFormProps) {
+  const isEditMode = mode === 'edit';
   const [date, setDate] = useState(initialValues?.date ?? '');
   const [availabilityType, setAvailabilityType] = useState<AvailabilityType>(
     initialValues?.is_available === false
@@ -74,8 +77,8 @@ function AvailabilityExceptionForm({
         return;
       }
 
-      if (date === today && startTime <= currentTime) {
-        setError('Start time must be later than the current time.');
+      if (!isEditMode && date === today && startTime <= currentTime) {
+        setError('Start time must be in the future.');
         return;
       }
     }
@@ -109,7 +112,7 @@ function AvailabilityExceptionForm({
           <input
             type="date"
             required
-            min={today}
+            min={isEditMode ? undefined : today}
             value={date}
             disabled={submitting}
             onChange={(event) => setDate(event.target.value)}
