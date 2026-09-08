@@ -1,6 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -129,7 +130,7 @@ def update_availability_exception(
     except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=exc.errors(),
+            detail=jsonable_encoder(exc.errors()),
         )
 
     if _has_date_conflict(db, merged_data["date"], exclude_id=exception_id):
