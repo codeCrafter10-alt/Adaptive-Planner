@@ -1,4 +1,9 @@
 from app.scheduling.engine import schedule
+from app.scheduling.availability import (
+    AvailabilityExceptionInput,
+    WeeklyAvailability,
+    generate_availability_windows,
+)
 from app.scheduling.models import (
     AvailabilityWindow,
     ExistingScheduleBlock,
@@ -18,4 +23,7 @@ __all__ = [
     "SchedulingTask",
     "UnscheduledWork",
     "schedule",
+    "AvailabilityExceptionInput",
+    "WeeklyAvailability",
+    "generate_availability_windows",
 ]
