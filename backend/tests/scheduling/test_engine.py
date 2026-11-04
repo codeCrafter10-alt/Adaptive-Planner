@@ -36,6 +36,46 @@ def _input(tasks, availability, existing_schedule=None, end=END):
     )
 
 
+def _assert_valid_result(result, tasks, availability, end=END):
+    task_by_id = {task.task_id: task for task in tasks}
+    scheduled_minutes = {task.task_id: 0 for task in tasks}
+    unscheduled_minutes = {
+        item.task_id: item.remaining_duration_minutes
+        for item in result.unscheduled_work
+    }
+    ordered_blocks = sorted(result.blocks, key=lambda block: block.start)
+    availability_union = []
+    for window in sorted(availability, key=lambda item: (item.start, item.end)):
+        if availability_union and window.start <= availability_union[-1][1]:
+            availability_union[-1] = (
+                availability_union[-1][0],
+                max(availability_union[-1][1], window.end),
+            )
+        else:
+            availability_union.append((window.start, window.end))
+
+    for previous, current in zip(ordered_blocks, ordered_blocks[1:]):
+        assert previous.end <= current.start
+
+    for block in result.blocks:
+        task = task_by_id[block.task_id]
+        duration = int((block.end - block.start).total_seconds() // 60)
+        assert START <= block.start < block.end <= end
+        assert block.end <= task.deadline
+        assert duration >= task.minimum_session_length_minutes
+        assert any(
+            window_start <= block.start and block.end <= window_end
+            for window_start, window_end in availability_union
+        )
+        scheduled_minutes[task.task_id] += duration
+
+    for task in tasks:
+        assert (
+            scheduled_minutes[task.task_id] + unscheduled_minutes.get(task.task_id, 0)
+            == task.remaining_duration_minutes
+        )
+
+
 def test_schedule_allocates_work_in_chronological_windows():
     result = schedule(
         _input(
@@ -184,30 +224,30 @@ def test_task_at_scheduling_start_or_after_has_no_eligible_time():
     ]
 
 
-def test_allocation_does_not_strand_sub_minimum_residual_work():
+def test_sub_minimum_remainder_is_intentionally_left_unscheduled():
+    task = _task(remaining_duration_minutes=40, minimum_session_length_minutes=30)
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 35, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=datetime(2026, 9, 25, 10, 35, tzinfo=timezone.utc),
+        ),
+    ]
     result = schedule(
-        _input(
-            [
-                _task(
-                    remaining_duration_minutes=40,
-                    minimum_session_length_minutes=30,
-                )
-            ],
-            [
-                AvailabilityWindow(
-                    start=START,
-                    end=datetime(2026, 9, 25, 9, 35, tzinfo=timezone.utc),
-                ),
-                AvailabilityWindow(
-                    start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
-                    end=datetime(2026, 9, 25, 10, 35, tzinfo=timezone.utc),
-                ),
-            ],
-        )
+        _input([task], availability)
     )
 
-    assert result.blocks == []
-    assert result.unscheduled_work[0].remaining_duration_minutes == 40
+    assert [(block.start, block.end) for block in result.blocks] == [
+        (
+            START,
+            datetime(2026, 9, 25, 9, 35, tzinfo=timezone.utc),
+        )
+    ]
+    assert result.unscheduled_work[0].remaining_duration_minutes == 5
+    _assert_valid_result(result, [task], availability)
 
 
 def test_sub_minimum_remainder_stays_unscheduled_when_next_window_is_too_short():
@@ -241,7 +281,7 @@ def test_sub_minimum_remainder_stays_unscheduled_when_next_window_is_too_short()
     assert result.unscheduled_work[0].remaining_duration_minutes == 30
 
 
-def test_fifty_minute_window_trims_allocation_to_preserve_minimum_remainder():
+def test_fifty_minute_window_leaves_sub_minimum_remainder_unscheduled():
     result = schedule(
         _input(
             [
@@ -262,31 +302,56 @@ def test_fifty_minute_window_trims_allocation_to_preserve_minimum_remainder():
     assert len(result.blocks) == 1
     assert result.blocks[0].start == START
     assert result.blocks[0].end == datetime(
-        2026, 9, 25, 9, 35, tzinfo=timezone.utc
+        2026, 9, 25, 9, 50, tzinfo=timezone.utc
     )
-    assert result.unscheduled_work[0].remaining_duration_minutes == 30
+    assert result.unscheduled_work[0].remaining_duration_minutes == 15
+
+
+def test_fifty_plus_twenty_window_schedules_fifty_and_improves_over_old_trim():
+    task = _task(
+        remaining_duration_minutes=65,
+        minimum_session_length_minutes=30,
+    )
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 50, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=datetime(2026, 9, 25, 10, 20, tzinfo=timezone.utc),
+        ),
+    ]
+
+    result = schedule(_input([task], availability))
+    scheduled_minutes = sum(
+        int((block.end - block.start).total_seconds() // 60)
+        for block in result.blocks
+    )
+
+    assert scheduled_minutes == 50
+    assert scheduled_minutes > 35
+    assert result.unscheduled_work[0].remaining_duration_minutes == 15
+    _assert_valid_result(result, [task], availability)
 
 
 def test_allocation_trims_to_preserve_minimum_final_session():
+    task = _task(
+        remaining_duration_minutes=65,
+        minimum_session_length_minutes=30,
+    )
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 50, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=datetime(2026, 9, 25, 11, tzinfo=timezone.utc),
+        ),
+    ]
     result = schedule(
-        _input(
-            [
-                _task(
-                    remaining_duration_minutes=65,
-                    minimum_session_length_minutes=30,
-                )
-            ],
-            [
-                AvailabilityWindow(
-                    start=START,
-                    end=datetime(2026, 9, 25, 9, 50, tzinfo=timezone.utc),
-                ),
-                AvailabilityWindow(
-                    start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
-                    end=datetime(2026, 9, 25, 11, tzinfo=timezone.utc),
-                ),
-            ],
-        )
+        _input([task], availability)
     )
 
     assert [
@@ -302,6 +367,143 @@ def test_allocation_trims_to_preserve_minimum_final_session():
         ),
     ]
     assert result.unscheduled_work == []
+    _assert_valid_result(result, [task], availability)
+
+
+def test_trim_lookahead_is_deterministic_for_shuffled_inputs():
+    tasks = [
+        _task(
+            task_id=1,
+            priority=TaskPriority.high,
+            remaining_duration_minutes=65,
+            minimum_session_length_minutes=30,
+        ),
+        _task(
+            task_id=2,
+            priority=TaskPriority.low,
+            remaining_duration_minutes=30,
+            minimum_session_length_minutes=30,
+        ),
+    ]
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 50, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=datetime(2026, 9, 25, 11, 30, tzinfo=timezone.utc),
+        ),
+    ]
+
+    baseline = schedule(_input(tasks, availability))
+    reversed_tasks = schedule(_input(list(reversed(tasks)), availability))
+    reversed_windows = schedule(_input(tasks, list(reversed(availability))))
+    both_reversed = schedule(
+        _input(list(reversed(tasks)), list(reversed(availability)))
+    )
+
+    assert baseline == reversed_tasks == reversed_windows == both_reversed
+    _assert_valid_result(baseline, tasks, availability)
+
+
+def test_deadline_clipped_lookahead_does_not_trim_without_a_usable_later_window():
+    task = _task(
+        remaining_duration_minutes=65,
+        minimum_session_length_minutes=30,
+        deadline=datetime(2026, 9, 25, 10, 20, tzinfo=timezone.utc),
+    )
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 50, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=END,
+        ),
+    ]
+
+    result = schedule(_input([task], availability))
+
+    assert [(block.start, block.end) for block in result.blocks] == [
+        (
+            START,
+            datetime(2026, 9, 25, 9, 50, tzinfo=timezone.utc),
+        )
+    ]
+    assert result.unscheduled_work[0].remaining_duration_minutes == 15
+    _assert_valid_result(result, [task], availability)
+
+
+def test_task_stops_when_remaining_work_is_below_minimum():
+    task = _task(remaining_duration_minutes=4, minimum_session_length_minutes=3)
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 3, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=datetime(2026, 9, 25, 10, 3, tzinfo=timezone.utc),
+        ),
+    ]
+
+    result = schedule(_input([task], availability))
+
+    assert [(block.start, block.end) for block in result.blocks] == [
+        (
+            START,
+            datetime(2026, 9, 25, 9, 3, tzinfo=timezone.utc),
+        )
+    ]
+    assert result.unscheduled_work[0].remaining_duration_minutes == 1
+    _assert_valid_result(result, [task], availability)
+
+
+def test_priority_order_can_leave_more_total_work_unscheduled():
+    high_priority = _task(
+        task_id=1,
+        remaining_duration_minutes=5,
+        minimum_session_length_minutes=3,
+        priority=TaskPriority.high,
+    )
+    constrained_low_priority = _task(
+        task_id=2,
+        remaining_duration_minutes=3,
+        minimum_session_length_minutes=3,
+        priority=TaskPriority.low,
+        deadline=datetime(2026, 9, 25, 9, 3, tzinfo=timezone.utc),
+    )
+    availability = [
+        AvailabilityWindow(
+            start=START,
+            end=datetime(2026, 9, 25, 9, 3, tzinfo=timezone.utc),
+        ),
+        AvailabilityWindow(
+            start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            end=datetime(2026, 9, 25, 10, 3, tzinfo=timezone.utc),
+        ),
+    ]
+
+    result = schedule(_input([constrained_low_priority, high_priority], availability))
+
+    assert [(block.task_id, block.start, block.end) for block in result.blocks] == [
+        (
+            high_priority.task_id,
+            START,
+            datetime(2026, 9, 25, 9, 3, tzinfo=timezone.utc),
+        )
+    ]
+    assert [
+        (item.task_id, item.remaining_duration_minutes)
+        for item in result.unscheduled_work
+    ] == [(high_priority.task_id, 2), (constrained_low_priority.task_id, 3)]
+    _assert_valid_result(
+        result,
+        [constrained_low_priority, high_priority],
+        availability,
+    )
 
 
 def test_task_can_continue_across_multiple_windows_without_short_blocks():
