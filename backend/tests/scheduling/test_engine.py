@@ -127,7 +127,7 @@ def test_deadline_is_hard_and_end_is_exclusive():
             [
                 AvailabilityWindow(
                     start=START,
-                    end=datetime(2026, 9, 25, 11, tzinfo=timezone.utc),
+                    end=deadline,
                 ),
                 AvailabilityWindow(start=deadline, end=END),
             ],
@@ -416,3 +416,141 @@ def test_empty_input_returns_empty_result():
 
     assert result.blocks == []
     assert result.unscheduled_work == []
+
+
+def test_adjacent_windows_are_coalesced_for_minimum_session():
+    result = schedule(
+        _input(
+            [
+                _task(
+                    remaining_duration_minutes=240,
+                    minimum_session_length_minutes=240,
+                )
+            ],
+            [
+                AvailabilityWindow(
+                    start=START,
+                    end=datetime(2026, 9, 25, 12, tzinfo=timezone.utc),
+                ),
+                AvailabilityWindow(
+                    start=datetime(2026, 9, 25, 12, tzinfo=timezone.utc),
+                    end=datetime(2026, 9, 25, 15, tzinfo=timezone.utc),
+                ),
+            ],
+        )
+    )
+
+    assert [(block.start, block.end) for block in result.blocks] == [
+        (START, datetime(2026, 9, 25, 13, tzinfo=timezone.utc))
+    ]
+    assert result.unscheduled_work == []
+
+
+def test_blocks_are_sorted_chronologically_not_by_task_priority():
+    result = schedule(
+        _input(
+            [
+                _task(
+                    task_id=1,
+                    priority=TaskPriority.high,
+                    remaining_duration_minutes=60,
+                    minimum_session_length_minutes=60,
+                ),
+                _task(
+                    task_id=2,
+                    priority=TaskPriority.low,
+                    remaining_duration_minutes=30,
+                    minimum_session_length_minutes=30,
+                ),
+            ],
+            [
+                AvailabilityWindow(
+                    start=START,
+                    end=datetime(2026, 9, 25, 9, 30, tzinfo=timezone.utc),
+                ),
+                AvailabilityWindow(
+                    start=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+                    end=datetime(2026, 9, 25, 11, tzinfo=timezone.utc),
+                ),
+            ],
+        )
+    )
+
+    assert [block.task_id for block in result.blocks] == [2, 1]
+
+
+def test_deadline_clipped_window_tail_is_reused_by_later_task():
+    result = schedule(
+        _input(
+            [
+                _task(
+                    task_id=1,
+                    priority=TaskPriority.high,
+                    remaining_duration_minutes=90,
+                    deadline=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+                ),
+                _task(
+                    task_id=2,
+                    priority=TaskPriority.low,
+                    remaining_duration_minutes=30,
+                    deadline=END,
+                ),
+            ],
+            [
+                AvailabilityWindow(
+                    start=START,
+                    end=datetime(2026, 9, 25, 11, tzinfo=timezone.utc)
+                )
+            ],
+        )
+    )
+
+    assert [(block.task_id, block.start, block.end) for block in result.blocks] == [
+        (1, START, datetime(2026, 9, 25, 10, tzinfo=timezone.utc)),
+        (
+            2,
+            datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+            datetime(2026, 9, 25, 10, 30, tzinfo=timezone.utc),
+        ),
+    ]
+    assert result.unscheduled_work[0].remaining_duration_minutes == 30
+
+
+def test_deadline_after_scheduling_end_does_not_extend_allocation():
+    result = schedule(
+        _input(
+            [
+                _task(
+                    remaining_duration_minutes=90,
+                    deadline=datetime(2026, 9, 25, 23, 59, 59, tzinfo=timezone.utc),
+                )
+            ],
+            [AvailabilityWindow(start=START, end=END)],
+            end=datetime(2026, 9, 25, 10, tzinfo=timezone.utc),
+        )
+    )
+
+    assert result.blocks[0].end == datetime(2026, 9, 25, 10, tzinfo=timezone.utc)
+    assert result.unscheduled_work[0].remaining_duration_minutes == 30
+
+
+def test_unscheduled_work_follows_task_processing_order():
+    result = schedule(
+        _input(
+            [
+                _task(
+                    task_id=2,
+                    priority=TaskPriority.high,
+                    deadline=datetime(2026, 9, 25, 8, 59, tzinfo=timezone.utc),
+                ),
+                _task(
+                    task_id=1,
+                    priority=TaskPriority.low,
+                    deadline=datetime(2026, 9, 25, 8, 58, tzinfo=timezone.utc),
+                ),
+            ],
+            [],
+        )
+    )
+
+    assert [item.task_id for item in result.unscheduled_work] == [2, 1]

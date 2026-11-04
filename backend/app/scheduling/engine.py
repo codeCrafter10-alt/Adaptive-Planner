@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from app.models.task import TaskPriority
 from app.scheduling.models import (
@@ -17,14 +17,17 @@ _PRIORITY_ORDER = {
 
 
 def schedule(input: SchedulingInput) -> SchedulingResult:
-    """Greedily allocate tasks into disjoint free availability windows.
-
-    Availability windows are assumed to be disjoint because they are produced
-    by the Phase 7.2 generator, which subtracts and normalizes existing work.
     """
-    remaining_windows = sorted(
-        (window.start, window.end) for window in input.availability
-    )
+    Greedily allocate tasks into coalesced free availability windows.
+
+    All datetime values in the result are UTC-normalized.
+    """
+    remaining_windows: list[tuple[datetime, datetime]] = []
+    for window in sorted(input.availability, key=lambda item: (item.start, item.end)):
+        if remaining_windows and window.start == remaining_windows[-1][1]:
+            remaining_windows[-1] = (remaining_windows[-1][0], window.end)
+        else:
+            remaining_windows.append((window.start, window.end))
     ordered_tasks = sorted(
         input.tasks,
         key=lambda task: (
@@ -89,4 +92,5 @@ def schedule(input: SchedulingInput) -> SchedulingResult:
                 )
             )
 
+    blocks.sort(key=lambda block: (block.start, block.end, block.task_id))
     return SchedulingResult(blocks=blocks, unscheduled_work=unscheduled_work)

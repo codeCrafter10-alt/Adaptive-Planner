@@ -16,6 +16,8 @@ class WeeklyAvailability:
     def __post_init__(self) -> None:
         if not 0 <= self.day_of_week <= 6:
             raise ValueError("day_of_week must be between 0 and 6 (Monday=0)")
+        _validate_whole_minute(self.start_time, "start_time")
+        _validate_whole_minute(self.end_time, "end_time")
         if self.start_time >= self.end_time:
             raise ValueError("start_time must be before end_time")
 
@@ -33,6 +35,8 @@ class AvailabilityExceptionInput:
                 raise ValueError(
                     "available exceptions require start_time and end_time"
                 )
+            _validate_whole_minute(self.start_time, "start_time")
+            _validate_whole_minute(self.end_time, "end_time")
             if self.start_time >= self.end_time:
                 raise ValueError("start_time must be before end_time")
         elif self.start_time is not None or self.end_time is not None:
@@ -164,3 +168,8 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("datetime must be timezone-aware")
     return value.astimezone(timezone.utc)
+
+
+def _validate_whole_minute(value: time, field_name: str) -> None:
+    if value.second or value.microsecond:
+        raise ValueError(f"{field_name} must be aligned to whole minutes")
