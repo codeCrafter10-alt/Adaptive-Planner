@@ -60,6 +60,8 @@ def generate_availability_windows(
     zone = _load_timezone(timezone_name)
     start_utc = _as_utc(scheduling_start)
     end_utc = _as_utc(scheduling_end)
+    _validate_whole_minute(start_utc, "scheduling_start")
+    _validate_whole_minute(end_utc, "scheduling_end")
     if start_utc >= end_utc:
         raise ValueError("scheduling_start must be before scheduling_end")
 
@@ -85,11 +87,15 @@ def generate_availability_windows(
         current += timedelta(days=1)
 
     occupied = sorted(
-        (_as_utc(block.start), _as_utc(block.end)) for block in existing_schedule
+        (
+            _floor_to_minute(_as_utc(block.start)),
+            _ceil_to_minute(_as_utc(block.end)),
+        )
+        for block in existing_schedule
     )
     merged_occupied: list[tuple[datetime, datetime]] = []
     for start, end in occupied:
-        if merged_occupied and start < merged_occupied[-1][1]:
+        if merged_occupied and start <= merged_occupied[-1][1]:
             merged_occupied[-1] = (
                 merged_occupied[-1][0],
                 max(merged_occupied[-1][1], end),
@@ -170,6 +176,17 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _validate_whole_minute(value: time, field_name: str) -> None:
+def _floor_to_minute(value: datetime) -> datetime:
+    return value.replace(second=0, microsecond=0)
+
+
+def _ceil_to_minute(value: datetime) -> datetime:
+    floored = _floor_to_minute(value)
+    if value == floored:
+        return value
+    return floored + timedelta(minutes=1)
+
+
+def _validate_whole_minute(value: time | datetime, field_name: str) -> None:
     if value.second or value.microsecond:
         raise ValueError(f"{field_name} must be aligned to whole minutes")

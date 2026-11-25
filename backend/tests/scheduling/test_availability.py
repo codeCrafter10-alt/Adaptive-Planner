@@ -448,3 +448,243 @@ def test_shuffled_input_order_produces_deterministic_output():
     )
 
     assert first == second
+
+
+def test_existing_block_start_with_seconds_rounds_down_to_whole_utc_minute():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(9), time(11))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, 0, 30, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 10, 1, tzinfo=timezone.utc),
+            )
+        ],
+        datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 9, 28, 10, 1, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_existing_block_end_with_seconds_rounds_up_to_whole_utc_minute():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(9), time(11))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 10, 0, 30, tzinfo=timezone.utc),
+            )
+        ],
+        datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 9, 28, 10, 1, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_existing_block_end_with_microseconds_rounds_up():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(9), time(11))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+                end=datetime(
+                    2026, 9, 28, 10, 0, 0, 1, tzinfo=timezone.utc
+                ),
+            )
+        ],
+        datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 9, 28, 10, 1, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_existing_whole_minute_block_is_unchanged():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(9), time(12))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+            )
+        ],
+        datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_subminute_blocks_merge_after_rounding():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(9), time(11))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, 0, 10, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 10, 0, 20, tzinfo=timezone.utc),
+            ),
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, 0, 40, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 10, 1, 10, tzinfo=timezone.utc),
+            ),
+        ],
+        datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 9, 28, 10, 2, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_block_entirely_inside_one_minute_occupies_that_whole_minute():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(9), time(11))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, 0, 10, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 10, 0, 50, tzinfo=timezone.utc),
+            )
+        ],
+        datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 9, 28, 9, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 9, 28, 10, 1, tzinfo=timezone.utc),
+            datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_fall_back_subminute_block_rounds_after_conversion_to_utc():
+    new_york = ZoneInfo("America/New_York")
+    windows = generate_availability_windows(
+        [WeeklyAvailability(6, time(5), time(7))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(
+                    2026, 11, 1, 1, 59, 10, tzinfo=new_york, fold=0
+                ),
+                end=datetime(
+                    2026, 11, 1, 1, 0, 10, tzinfo=new_york, fold=1
+                ),
+            )
+        ],
+        datetime(2026, 11, 1, 5, 58, tzinfo=timezone.utc),
+        datetime(2026, 11, 1, 6, 2, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert [(window.start, window.end) for window in windows] == [
+        (
+            datetime(2026, 11, 1, 5, 58, tzinfo=timezone.utc),
+            datetime(2026, 11, 1, 5, 59, tzinfo=timezone.utc),
+        ),
+        (
+            datetime(2026, 11, 1, 6, 1, tzinfo=timezone.utc),
+            datetime(2026, 11, 1, 6, 2, tzinfo=timezone.utc),
+        ),
+    ]
+
+
+def test_subminute_existing_block_fully_occupies_one_minute_window():
+    windows = generate_availability_windows(
+        [WeeklyAvailability(0, time(10), time(10, 1))],
+        [],
+        [
+            ExistingScheduleBlock(
+                start=datetime(2026, 9, 28, 10, 0, 10, tzinfo=timezone.utc),
+                end=datetime(2026, 9, 28, 10, 0, 50, tzinfo=timezone.utc),
+            )
+        ],
+        datetime(2026, 9, 28, 10, tzinfo=timezone.utc),
+        datetime(2026, 9, 28, 10, 1, tzinfo=timezone.utc),
+        "UTC",
+    )
+
+    assert windows == []
+
+
+def test_subminute_scheduling_bounds_name_the_invalid_bound():
+    with pytest.raises(ValueError, match="scheduling_start"):
+        generate_availability_windows(
+            [],
+            [],
+            [],
+            datetime(2026, 9, 28, 0, 0, 1, tzinfo=timezone.utc),
+            datetime(2026, 9, 29, tzinfo=timezone.utc),
+            "UTC",
+        )
+
+    with pytest.raises(ValueError, match="scheduling_end"):
+        generate_availability_windows(
+            [],
+            [],
+            [],
+            datetime(2026, 9, 28, tzinfo=timezone.utc),
+            datetime(2026, 9, 29, 0, 0, 1, tzinfo=timezone.utc),
+            "UTC",
+        )
