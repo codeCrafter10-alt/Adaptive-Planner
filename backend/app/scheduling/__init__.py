@@ -13,6 +13,7 @@ from app.scheduling.models import (
     SchedulingTask,
     UnscheduledWork,
 )
+from app.scheduling.pipeline import schedule_with_availability
 
 __all__ = [
     "AvailabilityWindow",
@@ -26,4 +27,5 @@ __all__ = [
     "AvailabilityExceptionInput",
     "WeeklyAvailability",
     "generate_availability_windows",
+    "schedule_with_availability",
 ]
